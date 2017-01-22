@@ -485,12 +485,13 @@ git pull
 git clone --depth 1 https://github.com/nethunteros/re4son-raspberrypi-linux.git -b rpi-4.4.y-re4son ${basedir}/root/usr/src/kernel
 cd ${basedir}/root/usr/src/kernel
 export ARCH=arm
-export CROSS_COMPILE=arm-linux-gnueabihf-
+export KERNEL=kernel
 export CROSS_COMPILE=${TOPDIR}/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian/bin/arm-linux-gnueabihf-
 
 # Make kernel with re4sons defconfig
 echo "[+] Building kernel and modules"
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- re4son_pi1_defconfig
+make ARCH=arm bcmrpi_defconfig
+#make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- re4son_pi1_defconfig
 make -j $(grep -c processor /proc/cpuinfo) zImage modules dtbs
 
 echo "[+] Copying kernel"
@@ -500,10 +501,10 @@ cp arch/arm/boot/dts/overlays/*.dtb* ${basedir}/bootp/overlays/
 cp arch/arm/boot/dts/overlays/README ${basedir}/bootp/overlays/
 
 echo "[+] Creating and copying modules"
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- firmware_install INSTALL_MOD_PATH=${basedir}/root
+make ARCH=arm firmware_install INSTALL_MOD_PATH=${basedir}/root
 
 echo "[+] Making kernel headers"
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- headers_install INSTALL_HDR_PATH=${basedir}/root/usr
+make ARCH=arm headers_install INSTALL_HDR_PATH=${basedir}/root/usr
 
 # systemd doesn't seem to be generating the fstab properly for some people, so
 # let's create one.
@@ -600,7 +601,7 @@ EOF
     sudo sed --in-place "/exit 0/d" $dir/etc/rc.local
 
     # Ethernet module
-    echo -e "dwc2\ng_ether" >> /etc/modules
+    echo -e "dwc2\ng_ether" >> $dir/etc/modules
 
     # systemd doesn't seem to be generating the fstab properly for some people, so
     # let's create one.
