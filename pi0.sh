@@ -34,7 +34,7 @@ if [[ $# -eq 0 ]] ; then
 fi
 
 basedir=`pwd`/rpi0-kali             # OUTPUT FOLDER
-architecture="armhf"                # DEFAULT ARCH
+architecture="armel"                # DEFAULT ARCH FOR RPI
 DIRECTORY=`pwd`/kali-$architecture  # CHROOT FS FOLDER
 TOPDIR=`pwd`                        # CURRENT FOLDER
 VERSION=$1
@@ -413,6 +413,7 @@ bootp=${device}p1
 rootp=${device}p2
 
 # Create file systems
+echo "${bootp} ${rootp}"
 echo "[+] BOOTP filesystem mkfs.vfat"
 mkfs.vfat $bootp
 echo "[+] ROOT filesystem mkfs.ext4"
@@ -421,8 +422,8 @@ mkfs.ext4 $rootp
 # Create the dirs for the partitions bootp & root and mount them
 echo "[+] Creating ${basedir}/bootp ${basedir}/root folders and mounting"
 mkdir -p ${basedir}/bootp ${basedir}/root
-mount $bootp ${basedir}/bootp
-mount $rootp ${basedir}/root
+mount -t vfat $bootp ${basedir}/bootp
+mount -t ext4 $rootp ${basedir}/root
 
 # Copy kali to /root folder
 echo "[+] Rsyncing rootfs ${DIRECTORY}/ into root folder for image: ${basedir}/root/"
@@ -490,8 +491,8 @@ export CROSS_COMPILE=${TOPDIR}/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-
 
 # Make kernel with re4sons defconfig
 echo "[+] Building kernel and modules"
-make ARCH=arm bcmrpi_defconfig
-#make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- re4son_pi1_defconfig
+#make ARCH=arm bcmrpi_defconfig
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- re4son_pi0_defconfig
 make -j $(grep -c processor /proc/cpuinfo) zImage modules dtbs
 
 echo "[+] Copying kernel"
