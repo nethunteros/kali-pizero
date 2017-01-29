@@ -234,7 +234,7 @@ echo "default-user-image=#kali-k" >> /etc/lightdm/lightdm-gtk-greeter.conf
 ################################
 # Install poisontap and hackpi #
 ################################
-adduser pi
+adduser pi --disabled-password
 echo 'pi:raspberry' | chpasswd
 mkdir -p /home/pi
 cd /home/pi
@@ -494,16 +494,12 @@ make ARCH=arm firmware_install INSTALL_MOD_PATH=${basedir}/root
 echo "[+] Making kernel headers"
 make ARCH=arm headers_install INSTALL_HDR_PATH=${basedir}/root/usr
 
-
-
 # systemd doesn't seem to be generating the fstab properly for some people, so
 # let's create one.
 cat << EOF > ${basedir}/root/etc/fstab
 # <file system> <mount point>   <type>  <options>       <dump>  <pass>
 proc /proc proc nodev,noexec,nosuid 0  0
 /dev/mmcblk0p2  / ext4 errors=remount-ro 0 1
-# Change this if you add a swap partition or file
-#/var/swapfile none swap sw 0 0
 /dev/mmcblk0p1 /boot vfat noauto 0 0
 EOF
 
@@ -649,18 +645,6 @@ chmod +x $dir/etc/rc.local
 
     # Ethernet module
     echo -e "dwc2\ng_ether" >> $dir/etc/modules
-
-    # systemd doesn't seem to be generating the fstab properly for some people, so
-    # let's create one.
-    echo "[+] Creating /etc/fstab"
-cat << EOF > $dir/etc/fstab
-# <file system> <mount point>   <type>  <options>       <dump>  <pass>
-proc /proc proc nodev,noexec,nosuid 0  0
-/dev/mmcblk0p2  / ext4 errors=remount-ro 0 1
-# Change this if you add a swap partition or file
-#/dev/SWAP none swap sw 0 0
-/dev/mmcblk0p1 /boot vfat noauto 0 0
-EOF
 
     # Enable regenerate ssh host keys at first boot
     chroot $dir /bin/bash -c "systemctl enable regenerate_ssh_host_keys"
