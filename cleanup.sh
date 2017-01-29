@@ -1,5 +1,5 @@
 #!/bin/bash
-architecture="armhf"
+architecture="armel"
 
 function ask() {
     # http://djm.me/ask

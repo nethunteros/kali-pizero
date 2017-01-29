@@ -60,21 +60,20 @@ arm="abootimg cgpt fake-hwclock ntpdate u-boot-tools vboot-utils vboot-kernel-ut
 base="e2fsprogs initramfs-tools kali-defaults kali-menu parted sudo usbutils bash-completion dbus cowsay"
 desktop="fonts-croscore fonts-crosextra-caladea fonts-crosextra-carlito gnome-theme-kali kali-root-login lightdm network-manager network-manager-gnome xserver-xorg-video-fbdev xserver-xorg xinit"
 xfce4="gtk3-engines-xfce lightdm-gtk-greeter-settings xfconf kali-desktop-xfce xfce4-settings xfce4 xfce4-mount-plugin xfce4-notifyd xfce4-places-plugin xfce4-appfinder"
-tools="ethtool hydra john libnfc-bin mfoc nmap passing-the-hash php-cli sqlmap usbutils winexe wireshark"
-services="apache2 openssh-server tightvncserver dnsmasq hostapd"
-mitm="bettercap mitmf responder backdoor-factory bdfproxy responder"
+tools="ethtool hydra john libnfc-bin mfoc nmap passing-the-hash php-cli sqlmap usbutils winexe tshark"
+services="openssh-server tightvncserver dnsmasq hostapd bridge-utils isc-dhcp-server dsniff screen"
 extras="unzip unrar curl firefox-esr xfce4-terminal wpasupplicant florence tcpdump dnsutils gcc build-essential"
-wireless="aircrack-ng cowpatty python-dev kismet wifite pixiewps mana-toolkit dhcpcd5 dhcpcd-gtk dhcpcd-dbus wireless-tools wicd-curses"
+wireless="aircrack-ng cowpatty python-dev kismet wifite pixiewps wireless-tools wicd-curses"
 vpn="openvpn network-manager-openvpn network-manager-pptp network-manager-vpnc network-manager-openconnect network-manager-iodine"
 g0tmi1k="tmux ipcalc sipcalc psmisc htop gparted tor hashid p0f msfpc exe2hexbat windows-binaries thefuck burpsuite"
 
 # kernel sauces take up space yo.
 size=7000 # Size of image in megabytes
 
-packages="${arm} ${base} ${desktop} ${tools} ${services} ${extras} ${mitm} ${wireless} ${xfce4} ${vpn} ${g0tmi1k}"
+packages="${arm} ${base} ${desktop} ${tools} ${services} ${extras} ${xfce4} ${vpn}"
 
-# Archteicture for Pi0 is armhf
-architecture="armhf"
+# Full
+#packages="${arm} ${base} ${desktop} ${tools} ${services} ${extras} ${mitm} ${wireless} ${xfce4} ${vpn} ${g0tmi1k}"
 
 # If you have your own preferred mirrors, set them here.
 # After generating the rootfs, we set the sources.list to the default settings.
@@ -116,23 +115,18 @@ ff02::2         ip6-allrouters
 EOF
 chmod 644 kali-$architecture/etc/hosts
 
-cat << EOF > kali-$architecture/etc/network/interfaces
-auto lo
-iface lo inet loopback
+#cat << EOF > kali-$architecture/etc/network/interfaces
+#auto lo
+#iface lo inet loopback
 
-auto eth0
-iface eth0 inet dhcp
-
-# This is to allow setup for Pi zero on address 10.1.2.3
-auto usb0
-iface usb0 inet static
-  address 10.1.2.3
-  netmask 255.255.255.0
-  network 10.1.2.0
-  broadcast 10.1.2.255
-  gateway 10.1.2.1
-EOF
-chmod 644 kali-$architecture/etc/network/interfaces
+# This is to allow setup for Pi zero on address 1.0.0.1 which is compatible with poisontap
+#auto usb0
+#allow-hotplus usb0
+#iface usb0 inet static
+#  address 1.0.0.1
+#  netmask 0.0.0.0
+#EOF
+#chmod 644 kali-$architecture/etc/network/interfaces
 
 cat << EOF > kali-$architecture/etc/resolv.conf
 nameserver 8.8.8.8
@@ -195,7 +189,7 @@ rm -f /etc/udev/rules.d/70-persistent-net.rules
 
 echo "[+] Installing packages"
 export DEBIAN_FRONTEND=noninteractive
-apt-get --yes --force-yes install $packages
+apt-get --yes --force-yes install $packages &&
 apt-get --yes --force-yes dist-upgrade
 apt-get --yes --force-yes autoremove
 
@@ -214,19 +208,14 @@ update-rc.d ssh enable
 
 ############## Extra g0tmi1k apps ###############
 
-# Wireshark remove warning
-mkdir -p /root/.wireshark/
-echo "privs.warn_if_elevated: FALSE" > /root/.wireshark/recent_common
-mv -f /usr/share/wireshark/init.lua{,.disabled}
-
 # Fun MOTD
-echo "Moo" | /usr/games/cowsay > /etc/motd
+echo "Connect through serial with on host computer: sudo screen /dev/ttyACM0 115200" | /usr/games/cowsay > /etc/motd
 
 # SSH Allow authorized keys
 sed -i 's/^#AuthorizedKeysFile /AuthorizedKeysFile /g' "/etc/ssh/sshd_config"  # Allow for key based login
 
 ############################################################
-# Depends for rasp-config and bluetooth
+# Depends for rasp-config
 apt-get install -y libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils
 apt-get install -fy
 
@@ -239,7 +228,39 @@ echo "keyboard=florence --focus" >> /etc/lightdm/lightdm-gtk-greeter.conf
 echo "background=/usr/share/images/desktop-base/kali-lockscreen_1280x1024.png" >> /etc/lightdm/lightdm-gtk-greeter.conf
 echo "default-user-image=#kali-k" >> /etc/lightdm/lightdm-gtk-greeter.conf
 
+################################
+# Install poisontap and hackpi #
+################################
+adduser pi
+echo 'pi:raspberry' | chpasswd
+mkdir -p /home/pi
+cd /home/pi
+git clone https://github.com/wismna/HackPi
+chown -R pi HackPi
+cd HackPi
+cp isc-dhcp-server /etc/default/isc-dhcp-server
+cp dhcpd.conf /etc/dhcp/dhcpd.conf
+cp interfaces /etc/network/interfaces
+chmod +x *.sh
+cd ..
+git clone https://github.com/samyk/poisontap.git
+chown -R pi poisontap
+cd poisontap
+cp dhcpd.conf /etc/dhcp
+cd ..
+git clone https://github.com/lgandx/Responder
+cd ..
+echo "[+] Install nodejs"
+mkdir -p /tmp/node
+cd /tmp/node
+wget https://raw.githubusercontent.com/sdesalas/node-pi-zero/master/install-node-v6.4.0.sh
+./install-node-v6.4.0.sh
+ln -s /lib/ld-linux.so.3 /lib/ld-linux-armhf.so.3
+cd /
+rm -rf /tmp/node
+
 # Raspi-config install
+echo "[+] Install raspi-config"
 cd /tmp
 wget http://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20161207_all.deb
 dpkg -i raspi-config_*
@@ -282,43 +303,9 @@ EOF
 chmod +x kali-$architecture/cleanup
 LANG=C chroot kali-$architecture /cleanup
 
-# TMUX Settings
-cat << EOF > kali-$architecture/root/.tmux.conf
-#-Settings---------------------------------------------------------------------
-## Make it like screen (use CTRL+a)
-unbind C-b
-set -g prefix C-a
-## Pane switching (SHIFT+ARROWS)
-bind-key -n S-Left select-pane -L
-bind-key -n S-Right select-pane -R
-bind-key -n S-Up select-pane -U
-bind-key -n S-Down select-pane -D
-## Windows switching (ALT+ARROWS)
-bind-key -n M-Left  previous-window
-bind-key -n M-Right next-window
-## Windows re-ording (SHIFT+ALT+ARROWS)
-bind-key -n M-S-Left swap-window -t -1
-bind-key -n M-S-Right swap-window -t +1
-## Activity Monitoring
-setw -g monitor-activity on
-set -g visual-activity on
-## Set defaults
-set -g default-terminal screen-256color
-set -g history-limit 5000
-## Default windows titles
-set -g set-titles on
-set -g set-titles-string '#(whoami)@#H - #I:#W'
-## Last window switch
-bind-key C-a last-window
-## Reload settings (CTRL+a -> r)
-unbind r
-bind r source-file /etc/tmux.conf
-## Load custom sources
-#source ~/.bashrc   #(issues if you use /bin/bash & Debian)
-EOF
-
 # Raspbian Configs worth adding
-#cat << EOF > kali-$architecture/etc/wpa_supplicant/wpa_supplicant.conf 
+
+#cat << EOF > kali-$architecture/etc/wpa_supplicant/wpa_supplicant.conf
 #country=GB
 #ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
 #update_config=1
@@ -492,7 +479,7 @@ export CROSS_COMPILE=${TOPDIR}/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-
 # Make kernel with re4sons defconfig
 echo "[+] Building kernel and modules"
 #make ARCH=arm bcmrpi_defconfig
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- re4son_pi0_defconfig
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- re4son_pi1_defconfig
 make -j $(grep -c processor /proc/cpuinfo) zImage modules dtbs
 
 echo "[+] Copying kernel"
@@ -571,9 +558,9 @@ cat << EOF > $dir/tmp/fixkernel.sh
 #!/bin/bash
 echo "[+] Fixing kernel symlink"
 # Symlink is broken since we build outside of device (will link to host system)
-rm -rf /lib/modules/4.4.43-v7+/build
+rm -rf /lib/modules/4.4.45-v7+/build
 ln -s /usr/lib/arm-linux-gnueabihf/libisl.so /usr/lib/arm-linux-gnueabihf/libisl.so.10
-ln -s /usr/src/kernel /lib/modules/4.4.43-v7+/build
+ln -s /usr/src/kernel /lib/modules/4.4.45-v7+/build
 # make scripts doesn't work if we cross crompile
 cd /usr/src/kernel
 make ARCH=arm scripts
@@ -590,7 +577,7 @@ EOF
     # Create cmdline.txt file
     echo "[+] Creating /boot/cmdline.txt"
 cat << EOF > $dir/boot/cmdline.txt
-dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 elevator=deadline root=/dev/mmcblk0p2 rootfstype=ext4 rootwait modules-load=dwc2,g_ether net.ifnames=0 
+dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 elevator=deadline root=/dev/mmcblk0p2 rootfstype=ext4 rootwait net.ifnames=0
 EOF
 
     # Create config.txt file
@@ -599,7 +586,64 @@ cat << EOF > $dir/boot/config.txt
 dtoverlay=dwc2
 EOF
 
-    sudo sed --in-place "/exit 0/d" $dir/etc/rc.local
+    # RC LOCAL
+cat << EOF > $dir/etc/rc.local
+#!/bin/sh -e
+#
+# rc.local
+#
+# This script is executed at the end of each multiuser runlevel.
+# Make sure that the script will "exit 0" on success or any other
+# value on error.
+#
+# In order to enable or disable this script just change the execution
+# bits.
+#
+# By default this script does nothing.
+
+# Print the IP address
+_IP=$(hostname -I) || true
+if [ "$_IP" ]; then
+  printf "My IP address is %s\n" "$_IP"
+fi
+
+# Parse USB requests in dmesg
+/bin/bash /home/pi/HackPi/fingerprint.sh | tee /home/pi/os.txt
+
+# Stop the dummy gadget and start the real one
+modprobe -r g_ether
+modprobe libcomposite
+
+# libcomposite configuration
+/bin/sh /home/pi/HackPi/gadget.sh | tee /home/pi/HackPi/gadget.log
+
+# Start bridge interface
+ifup br0
+ifconfig br0 up
+
+# Clear leases
+#rm -f /var/lib/dhcp/dhcpd.leases
+#touch /var/lib/dhcp/dhcpd.leases
+
+# Start the DHCP server
+/sbin/route add -net 0.0.0.0/0 br0
+/etc/init.d/isc-dhcp-server start
+# Set some other paramaters
+/sbin/sysctl -w net.ipv4.ip_forward=1
+/sbin/iptables -t nat -A PREROUTING -i br0 -p tcp --dport 80 -j REDIRECT --to-port 1337
+# Start some servers
+#/usr/bin/screen -dmS dnsspoof /usr/sbin/dnsspoof -i br0 port 53
+#/usr/bin/screen -dmS node /usr/bin/nodejs /home/pi/poisontap/pi_poisontap.js 
+
+# Enable Serial
+systemctl enable getty@ttyGS0.service
+
+# Start Responder
+#/usr/bin/screen -dmS responder bash -c 'cd /home/pi/Responder/; python Responder.py -I br0 -f -w -r -d -F'
+
+exit 0
+EOF
+chmod +x $dir/etc/rc.local
 
     # Ethernet module
     echo -e "dwc2\ng_ether" >> $dir/etc/modules
