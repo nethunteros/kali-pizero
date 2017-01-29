@@ -165,6 +165,9 @@ chmod 755 kali-$architecture/lib/systemd/system/regenerate_ssh_host_keys.service
 cp $TOPDIR/misc/xfce4-setup.sh kali-$architecture/tmp/xfce4-setup.sh
 cp $TOPDIR/misc/bashtweaks.sh kali-$architecture/tmp/bashtweaks.sh
 
+# Copy zram
+cp $TOPDIR/misc/zram kali-$architecture/etc/init.d/zram
+
 echo "[+] Begin THIRD STAGE"
 cat << EOF > kali-$architecture/third-stage
 #!/bin/bash
@@ -416,9 +419,6 @@ mount -t ext4 $rootp ${basedir}/root
 echo "[+] Rsyncing rootfs ${DIRECTORY}/ into root folder for image: ${basedir}/root/"
 rsync -HPavz -q ${DIRECTORY}/ ${basedir}/root/
 
-# Enable login over serial
-echo "T0:23:respawn:/sbin/agetty -L ttyAMA0 115200 vt100" >> ${basedir}/root/etc/inittab
-
 cat << EOF > ${basedir}/root/etc/apt/sources.list
 deb http://http.kali.org/kali kali-rolling main contrib non-free
 #deb-src http://http.kali.org/kali kali-rolling main non-free contrib
@@ -493,6 +493,8 @@ make ARCH=arm firmware_install INSTALL_MOD_PATH=${basedir}/root
 
 echo "[+] Making kernel headers"
 make ARCH=arm headers_install INSTALL_HDR_PATH=${basedir}/root/usr
+
+
 
 # systemd doesn't seem to be generating the fstab properly for some people, so
 # let's create one.
