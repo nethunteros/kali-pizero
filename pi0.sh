@@ -178,7 +178,7 @@ rm -f /etc/udev/rules.d/70-persistent-net.rules
 echo "[+] Installing packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get --yes --force-yes install $packages &&
-apt-get --yes --force-yes dist-upgrade
+apt-get --yes --force-yes dist-upgrade &&
 apt-get --yes --force-yes autoremove
 
 echo "[+] Removing generated ssh keys"
@@ -189,12 +189,6 @@ rm -f /etc/ssh/ssh_host_*_key*
 echo "[+] Making root great again"
 sed -i -e 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 update-rc.d ssh enable
-
-cat << EOF > /etc/systemd/system/rc-local.service.d/ttyoutput.conf  
-[Service]
-StandardOutput=tty
-EOF
-chmod 644 /etc/systemd/system/rc-local.service.d/ttyoutput.conf 
 
 # Depends for rasp-config
 apt-get install -y libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils
