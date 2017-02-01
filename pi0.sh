@@ -197,47 +197,33 @@ apt-get install -fy
 ################################
 # Install poisontap and hackpi #
 ################################
-#echo "[+] Creating PI user"
-#adduser pi --disabled-password --gecos "" --shell /bin/bash
-#echo 'pi:raspberry' | chpasswd
-#mkdir -p /home/pi
-#cd /home/pi
-#git clone https://github.com/wismna/HackPi
-#chown -R pi HackPi
-#cd HackPi
-#cp isc-dhcp-server /etc/default/isc-dhcp-server
-#cp dhcpd.conf /etc/dhcp/dhcpd.conf
-#cp interfaces /etc/network/interfaces
-#cp modules /etc/modules
-#chmod +x *.sh
-#cd ..
-#git clone https://github.com/samyk/poisontap.git
-#chown -R pi poisontap
-#cd poisontap
-#cp dhcpd.conf /etc/dhcp
-#cd ..
-#echo "[+] Install nodejs"
-#mkdir -p /tmp/node
-#cd /tmp/node
-#wget https://raw.githubusercontent.com/sdesalas/node-pi-zero/master/install-node-v6.4.0.sh
-#chmod +x *.sh
-#./install-node-v6.4.0.sh
-#cd /
-#rm -rf /tmp/node
+echo "[+] Creating PI user"
+adduser pi --disabled-password --gecos "" --shell /bin/bash
+echo 'pi:raspberry' | chpasswd
+echo 'pi  ALL=(ALL:ALL) ALL' >> /etc/sudoers
+cd /home/pi
+git clone https://github.com/wismna/HackPi
+chown -R pi HackPi
+cd HackPi
+cp isc-dhcp-server /etc/default/isc-dhcp-server
+cp dhcpd.conf /etc/dhcp/dhcpd.conf
+cp interfaces /etc/network/interfaces
+cp modules /etc/modules
+chmod +x *.sh
+cd ..
+git clone https://github.com/samyk/poisontap.git
+chown -R pi poisontap
+cd poisontap
+cp dhcpd.conf /etc/dhcp
+cd ..
+git clone https://github.com/lgandx/Responder
 
-# XFCE stuff (both users?)
-#echo "[+] Running XFCE setup"
-#chmod +x /tmp/xfce4-setup.sh
-#/tmp/xfce4-setup.sh
-
-# Add Login Screen Tweaks
-# Add virtual keyboard to login screen
-#echo "[greeter]" > /etc/lightdm/lightdm-gtk-greeter.conf
-#echo "show-indicators=~language;~a11y;~session;~power" >> /etc/lightdm/lightdm-gtk-greeter.conf
-#echo "keyboard=florence --focus" >> /etc/lightdm/lightdm-gtk-greeter.conf
-# Background image and change logo
-#echo "background=/usr/share/images/desktop-base/kali-lockscreen_1280x1024.png" >> /etc/lightdm/lightdm-gtk-greeter.conf
-#echo "default-user-image=#kali-k" >> /etc/lightdm/lightdm-gtk-greeter.conf
+# NodeJS package and websocket are only in debian repo...
+echo "[+] Install nodejs...we have to add debian sources for this...why u no in kali?"
+echo "deb http://ftp.us.debian.org/debian/ jessie main " > /etc/apt/sources.list.d/debian.list
+apt-get update
+apt-get install -y nodejs node-ws
+ln -s /lib/ld-linux.so.3 /lib/ld-linux-armhf.so.3
 
 # Raspi-config install
 echo "[+] Install raspi-config"
@@ -447,6 +433,9 @@ cp arch/arm/boot/dts/overlays/*.dtb* ${basedir}/bootp/overlays/
 cp arch/arm/boot/dts/overlays/README ${basedir}/bootp/overlays/
 
 echo "[+] Creating and copying modules"
+make ARCH=arm modules_install INSTALL_MOD_PATH=${basedir}/root
+
+echo "[+] Creating and copying firmware"
 make ARCH=arm firmware_install INSTALL_MOD_PATH=${basedir}/root
 
 echo "[+] Making kernel headers"
@@ -514,9 +503,9 @@ cat << EOF > $dir/tmp/fixkernel.sh
 #!/bin/bash
 echo "[+] Fixing kernel symlink"
 # Symlink is broken since we build outside of device (will link to host system)
-rm -rf /lib/modules/4.4.45-v7+/build
-ln -s /usr/lib/arm-linux-gnueabihf/libisl.so /usr/lib/arm-linux-gnueabihf/libisl.so.10
-ln -s /usr/src/kernel /lib/modules/4.4.45-v7+/build
+rm -rf /lib/modules/4.4.45+/build
+#ln -s /usr/lib/arm-linux-gnueabihf/libisl.so /usr/lib/arm-linux-gnueabihf/libisl.so.10
+ln -s /usr/src/kernel /lib/modules/4.4.45+/build
 # make scripts doesn't work if we cross crompile
 cd /usr/src/kernel
 make ARCH=arm scripts
@@ -525,11 +514,11 @@ EOF
     echo "[+] Enable sshd at startup"
     chroot $dir /bin/bash -c "update-rc.d ssh enable"
 
-    echo "[+] Symlink to build"
+    #echo "[+] Symlink to build"
     chroot $dir /bin/bash -c "chmod +x /tmp/fixkernel.sh"
 
     echo "[+] Copying config.txt to /boot"
-    cp $TOPDIR/misc/config.txt $dir/boot/config.txt
+    cp $dir/home/pi/HackPi/config.txt $dir/boot/config.txt
 
     rm -f $dir/tmp/*
 
@@ -540,11 +529,11 @@ dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 roo
 EOF
 
     # RC LOCAL
-#cat << EOF > $dir/etc/rc.local
+cat << EOF > $dir/etc/rc.local
 #!/bin/sh -e
-#
+
 # rc.local
-#
+
 # This script is executed at the end of each multiuser runlevel.
 # Make sure that the script will "exit 0" on success or any other
 # value on error.
@@ -555,48 +544,49 @@ EOF
 # By default this script does nothing.
 
 # Print the IP address
-#_IP=$(hostname -I) || true
-#if [ "$_IP" ]; then
-#  printf "My IP address is %s\n" "$_IP"
-#fi
+_IP=$(hostname -I) || true
+if [ "$_IP" ]; then
+  printf "My IP address is %s\n" "$_IP"
+fi
 
 # Parse USB requests in dmesg
-#/bin/bash /home/pi/HackPi/fingerprint.sh | tee /home/pi/os.txt
+/bin/bash /home/pi/HackPi/fingerprint.sh | tee /home/pi/os.txt
 
 # Stop the dummy gadget and start the real one
-#modprobe -r g_ether
-#modprobe libcomposite
+modprobe -r g_ether
+modprobe libcomposite
 
 # libcomposite configuration
-#/bin/sh /home/pi/HackPi/gadget.sh | tee /home/pi/HackPi/gadget.log
+/bin/sh /home/pi/HackPi/gadget.sh | tee /home/pi/HackPi/gadget.log
 
 # Start bridge interface
-#ifup br0
-#ifconfig br0 up
+ifup br0
+ifconfig br0 up
 
 # Clear leases
-#rm -f /var/lib/dhcp/dhcpd.leases
-#touch /var/lib/dhcp/dhcpd.leases
+rm -f /var/lib/dhcp/dhcpd.leases
+touch /var/lib/dhcp/dhcpd.leases
 
 # Start the DHCP server
-#/sbin/route add -net 0.0.0.0/0 br0
-#/etc/init.d/isc-dhcp-server start
+/sbin/route add -net 0.0.0.0/0 br0
+/etc/init.d/isc-dhcp-server start
 # Set some other paramaters
-#/sbin/sysctl -w net.ipv4.ip_forward=1
-#/sbin/iptables -t nat -A PREROUTING -i br0 -p tcp --dport 80 -j REDIRECT --to-port 1337
-# Start some servers
+/sbin/sysctl -w net.ipv4.ip_forward=1
+/sbin/iptables -t nat -A PREROUTING -i br0 -p tcp --dport 80 -j REDIRECT --to-port 1337
+# Start some servers (uncomment for poisontap)
 #/usr/bin/screen -dmS dnsspoof /usr/sbin/dnsspoof -i br0 port 53
 #/usr/bin/screen -dmS node /usr/bin/nodejs /home/pi/poisontap/pi_poisontap.js
 
 # Enable Serial
-#systemctl enable getty@ttyGS0.service
+systemctl enable getty@ttyGS0.service
 
-# Start Responder
+# Start Responder (uncomment for poisontap)
 #/usr/bin/screen -dmS responder bash -c 'cd /home/pi/Responder/; python Responder.py -I br0 -f -w -r -d -F'
 
-#exit 0
-#EOF
-#chmod +x $dir/etc/rc.local
+# Exit
+exit 0
+EOF
+chmod +x $dir/etc/rc.local
 
     # Enable regenerate ssh host keys at first boot
     chroot $dir /bin/bash -c "systemctl enable regenerate_ssh_host_keys"
