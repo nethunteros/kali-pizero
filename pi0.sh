@@ -447,6 +447,9 @@ cp arch/arm/boot/dts/overlays/*.dtb* ${basedir}/bootp/overlays/
 cp arch/arm/boot/dts/overlays/README ${basedir}/bootp/overlays/
 
 echo "[+] Creating and copying modules"
+make ARCH=arm modules_install INSTALL_MOD_PATH=${basedir}/root
+
+echo "[+] Creating and copying firmware"
 make ARCH=arm firmware_install INSTALL_MOD_PATH=${basedir}/root
 
 echo "[+] Making kernel headers"
@@ -514,9 +517,9 @@ cat << EOF > $dir/tmp/fixkernel.sh
 #!/bin/bash
 echo "[+] Fixing kernel symlink"
 # Symlink is broken since we build outside of device (will link to host system)
-rm -rf /lib/modules/4.4.45-v7+/build
-ln -s /usr/lib/arm-linux-gnueabihf/libisl.so /usr/lib/arm-linux-gnueabihf/libisl.so.10
-ln -s /usr/src/kernel /lib/modules/4.4.45-v7+/build
+rm -rf /lib/modules/4.4.45+/build
+#ln -s /usr/lib/arm-linux-gnueabihf/libisl.so /usr/lib/arm-linux-gnueabihf/libisl.so.10
+ln -s /usr/src/kernel /lib/modules/4.4.45+/build
 # make scripts doesn't work if we cross crompile
 cd /usr/src/kernel
 make ARCH=arm scripts
