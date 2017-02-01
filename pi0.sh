@@ -64,7 +64,7 @@ vpn="openvpn network-manager-openvpn network-manager-pptp network-manager-vpnc n
 size=7000 # Size of image in megabytes
 
 # No Desktop...just commandline like a hax0r
-packages="${arm} ${base} ${desktop} ${xfce4} ${tools} ${services} ${extras} ${vpn}"
+packages="${arm} ${base} ${tools} ${services} ${extras} ${vpn}"
 
 # If you have your own preferred mirrors, set them here.
 # After generating the rootfs, we set the sources.list to the default settings.
@@ -148,10 +148,10 @@ EOF
 chmod 755 kali-$architecture/lib/systemd/system/regenerate_ssh_host_keys.service
 
 # Copy zram
-cp $TOPDIR/misc/zram kali-$architecture/etc/init.d/zram
+#cp $TOPDIR/misc/zram kali-$architecture/etc/init.d/zram
 
-# cCopy tweaks
-cp $TOPDIR/misc/xfce4-setup.sh kali-$architecture/tmp/xfce4-setup.sh
+# Copy tweaks
+#cp $TOPDIR/misc/xfce4-setup.sh kali-$architecture/tmp/xfce4-setup.sh
 
 echo "[+] Begin THIRD STAGE"
 cat << EOF > kali-$architecture/third-stage
@@ -197,11 +197,11 @@ apt-get install -fy
 ################################
 # Install poisontap and hackpi #
 ################################
-echo "[+] Creating PI user"
-adduser pi --disabled-password --gecos "" --shell /bin/bash
-echo 'pi:raspberry' | chpasswd
-mkdir -p /home/pi
-cd /home/pi
+#echo "[+] Creating PI user"
+#adduser pi --disabled-password --gecos "" --shell /bin/bash
+#echo 'pi:raspberry' | chpasswd
+#mkdir -p /home/pi
+#cd /home/pi
 #git clone https://github.com/wismna/HackPi
 #chown -R pi HackPi
 #cd HackPi
@@ -211,34 +211,33 @@ cd /home/pi
 #cp modules /etc/modules
 #chmod +x *.sh
 #cd ..
-git clone https://github.com/samyk/poisontap.git
-chown -R pi poisontap
-cd poisontap
-cp dhcpd.conf /etc/dhcp
-cd ..
-echo "[+] Install nodejs"
-mkdir -p /tmp/node
-cd /tmp/node
-wget https://raw.githubusercontent.com/sdesalas/node-pi-zero/master/install-node-v6.4.0.sh
-chmod +x *.sh
-./install-node-v6.4.0.sh
-ln -s /lib/ld-linux.so.3 /lib/ld-linux-armhf.so.3
-cd /
-rm -rf /tmp/node
+#git clone https://github.com/samyk/poisontap.git
+#chown -R pi poisontap
+#cd poisontap
+#cp dhcpd.conf /etc/dhcp
+#cd ..
+#echo "[+] Install nodejs"
+#mkdir -p /tmp/node
+#cd /tmp/node
+#wget https://raw.githubusercontent.com/sdesalas/node-pi-zero/master/install-node-v6.4.0.sh
+#chmod +x *.sh
+#./install-node-v6.4.0.sh
+#cd /
+#rm -rf /tmp/node
 
 # XFCE stuff (both users?)
-echo "[+] Running XFCE setup"
-chmod +x /tmp/xfce4-setup.sh
-/tmp/xfce4-setup.sh
+#echo "[+] Running XFCE setup"
+#chmod +x /tmp/xfce4-setup.sh
+#/tmp/xfce4-setup.sh
 
 # Add Login Screen Tweaks
 # Add virtual keyboard to login screen
-echo "[greeter]" > /etc/lightdm/lightdm-gtk-greeter.conf
-echo "show-indicators=~language;~a11y;~session;~power" >> /etc/lightdm/lightdm-gtk-greeter.conf
-echo "keyboard=florence --focus" >> /etc/lightdm/lightdm-gtk-greeter.conf
+#echo "[greeter]" > /etc/lightdm/lightdm-gtk-greeter.conf
+#echo "show-indicators=~language;~a11y;~session;~power" >> /etc/lightdm/lightdm-gtk-greeter.conf
+#echo "keyboard=florence --focus" >> /etc/lightdm/lightdm-gtk-greeter.conf
 # Background image and change logo
-echo "background=/usr/share/images/desktop-base/kali-lockscreen_1280x1024.png" >> /etc/lightdm/lightdm-gtk-greeter.conf
-echo "default-user-image=#kali-k" >> /etc/lightdm/lightdm-gtk-greeter.conf
+#echo "background=/usr/share/images/desktop-base/kali-lockscreen_1280x1024.png" >> /etc/lightdm/lightdm-gtk-greeter.conf
+#echo "default-user-image=#kali-k" >> /etc/lightdm/lightdm-gtk-greeter.conf
 
 # Raspi-config install
 echo "[+] Install raspi-config"
@@ -460,7 +459,7 @@ proc            /proc           proc    defaults          0       0
 /dev/mmcblk0p1  /boot           vfat    defaults          0       2
 /dev/mmcblk0p2  /               ext4    defaults,noatime  0       1
 EOF
-chmod 644 {basedir}/root/etc/fstab
+chmod 644 ${basedir}/root/etc/fstab
 
 # Unmount partitions
 umount -l $bootp
