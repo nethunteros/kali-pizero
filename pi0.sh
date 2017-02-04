@@ -51,7 +51,7 @@ if [ ! -f /usr/share/debootstrap/scripts/kali-rolling ]; then
     ln -s /usr/share/debootstrap/scripts/kali /usr/share/debootstrap/scripts/kali-rolling
 fi
 
-arm="abootimg cgpt fake-hwclock ntpdate u-boot-tools vboot-utils vboot-kernel-utils"
+arm="abootimg cgpt fake-hwclock ntpdate u-boot-tools vboot-utils vboot-kernel-utils ntp"
 base="e2fsprogs initramfs-tools kali-defaults kali-menu parted sudo usbutils bash-completion dbus cowsay"
 desktop="fonts-croscore fonts-crosextra-caladea fonts-crosextra-carlito gnome-theme-kali kali-root-login lightdm network-manager network-manager-gnome xserver-xorg-video-fbdev xserver-xorg xinit"
 xfce4="gtk3-engines-xfce lightdm-gtk-greeter-settings xfconf kali-desktop-xfce xfce4-settings xfce4 xfce4-mount-plugin xfce4-notifyd xfce4-places-plugin xfce4-appfinder"
@@ -222,7 +222,7 @@ git clone https://github.com/lgandx/Responder
 echo "[+] Install nodejs...we have to add debian sources for this...why u no in kali?"
 echo "deb http://ftp.us.debian.org/debian/ jessie main " > /etc/apt/sources.list.d/debian.list
 apt-get update
-apt-get install -y nodejs node-ws
+apt-get install -y nodejs node-ws npm
 ln -s /lib/ld-linux.so.3 /lib/ld-linux-armhf.so.3
 
 # Raspi-config install
@@ -444,9 +444,9 @@ make ARCH=arm headers_install INSTALL_HDR_PATH=${basedir}/root/usr
 # gener
 cat << EOF > ${basedir}/root/etc/fstab
 # <file system> <mount point>   <type>  <options>       <dump>  <pass>
-proc            /proc           proc    defaults          0       0
-/dev/mmcblk0p1  /boot           vfat    defaults          0       2
-/dev/mmcblk0p2  /               ext4    defaults,noatime  0       1
+proc            /proc	proc	defaults          0       0
+/dev/mmcblk0p1  /boot	vfat    defaults          0       2
+/dev/mmcblk0p2  /	ext4	defaults,noatime  0       1
 EOF
 chmod 644 ${basedir}/root/etc/fstab
 
@@ -528,65 +528,15 @@ cat << EOF > $dir/boot/cmdline.txt
 dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait
 EOF
 
+    # Copy poison.txt for easy enable/settings
+    echo "[+] Copying poison.txt (poisontap config file)"
+    cp $TOPDIR/misc/poison.txt $dir/boot/poison.txt
+
     # RC LOCAL
-cat << EOF > $dir/etc/rc.local
-#!/bin/sh -e
-
-# rc.local
-
-# This script is executed at the end of each multiuser runlevel.
-# Make sure that the script will "exit 0" on success or any other
-# value on error.
-#
-# In order to enable or disable this script just change the execution
-# bits.
-#
-# By default this script does nothing.
-
-# Print the IP address
-_IP=$(hostname -I) || true
-if [ "$_IP" ]; then
-  printf "My IP address is %s\n" "$_IP"
-fi
-
-# Parse USB requests in dmesg
-/bin/bash /home/pi/HackPi/fingerprint.sh | tee /home/pi/os.txt
-
-# Stop the dummy gadget and start the real one
-modprobe -r g_ether
-modprobe libcomposite
-
-# libcomposite configuration
-/bin/sh /home/pi/HackPi/gadget.sh | tee /home/pi/HackPi/gadget.log
-
-# Start bridge interface
-ifup br0
-ifconfig br0 up
-
-# Clear leases
-rm -f /var/lib/dhcp/dhcpd.leases
-touch /var/lib/dhcp/dhcpd.leases
-
-# Start the DHCP server
-/sbin/route add -net 0.0.0.0/0 br0
-/etc/init.d/isc-dhcp-server start
-# Set some other paramaters
-/sbin/sysctl -w net.ipv4.ip_forward=1
-/sbin/iptables -t nat -A PREROUTING -i br0 -p tcp --dport 80 -j REDIRECT --to-port 1337
-# Start some servers (uncomment for poisontap)
-#/usr/bin/screen -dmS dnsspoof /usr/sbin/dnsspoof -i br0 port 53
-#/usr/bin/screen -dmS node /usr/bin/nodejs /home/pi/poisontap/pi_poisontap.js
-
-# Enable Serial
-systemctl enable getty@ttyGS0.service
-
-# Start Responder (uncomment for poisontap)
-#/usr/bin/screen -dmS responder bash -c 'cd /home/pi/Responder/; python Responder.py -I br0 -f -w -r -d -F'
-
-# Exit
-exit 0
-EOF
-chmod +x $dir/etc/rc.local
+    echo "[+] Copy rc.local"
+    cp $TOPDIR/misc/rc.local $dir/etc/rc.local
+    dos2unix $dir/etc/rc.local
+    chroot $dir /bin/bash -c "chmod +x /etc/rc.local"
 
     # Enable regenerate ssh host keys at first boot
     chroot $dir /bin/bash -c "systemctl enable regenerate_ssh_host_keys"
