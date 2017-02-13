@@ -3,4 +3,4 @@ poison=false
 
 # Modify websocket to your domain/VPS. Example: ws://YOUR.DOMAIN:1337
 domain=your.domain.com
-port=1337
+port=80

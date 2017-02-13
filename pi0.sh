@@ -107,16 +107,30 @@ EOF
 chmod 644 kali-$architecture/etc/hosts
 
 cat << EOF > kali-$architecture/etc/network/interfaces
-auto lo
+# interfaces(5) file used by ifup(8) and ifdown(8)
 
+# Please note that this file is written to be used with dhcpcd
+# For static IP, consult /etc/dhcpcd.conf and 'man dhcpcd.conf'
+
+# Include files from /etc/network/interfaces.d:
+source-directory /etc/network/interfaces.d
+
+auto lo br0
 iface lo inet loopback
-iface eth0 inet dhcp
+
+auto usb0
+allow-hotplug usb0
+iface usb0 inet static
+	address 1.0.0.1
+	netmask 0.0.0.0
 EOF
 chmod 644 kali-$architecture/etc/network/interfaces
 
 cat << EOF > kali-$architecture/etc/resolv.conf
 nameserver 8.8.8.8
 EOF
+
+echo -e "dwc2\ng_ether" >> kali-$architecture/etc/modules
 
 export MALLOC_CHECK_=0 # workaround for LP: #520465
 export LC_ALL=C
@@ -146,6 +160,9 @@ ExecStartPost=/bin/rm /lib/systemd/system/regenerate_ssh_host_keys.service ; /us
 WantedBy=multi-user.target
 EOF
 chmod 755 kali-$architecture/lib/systemd/system/regenerate_ssh_host_keys.service
+
+cp $TOPDIR/misc/rc.local kali-$architecture/etc/rc.local
+chmod +x kali-$architecture/etc/rc.local
 
 # Copy zram
 #cp $TOPDIR/misc/zram kali-$architecture/etc/init.d/zram
@@ -195,28 +212,17 @@ apt-get install -y libnewt0.52 whiptail parted triggerhappy lua5.1 alsa-utils
 apt-get install -fy
 
 ################################
-# Install poisontap and hackpi #
+# Install poisontap	       #
 ################################
 echo "[+] Creating PI user"
 adduser pi --disabled-password --gecos "" --shell /bin/bash
 echo 'pi:raspberry' | chpasswd
 echo 'pi  ALL=(ALL:ALL) ALL' >> /etc/sudoers
 cd /home/pi
-git clone https://github.com/wismna/HackPi
-chown -R pi HackPi
-cd HackPi
-cp isc-dhcp-server /etc/default/isc-dhcp-server
-cp dhcpd.conf /etc/dhcp/dhcpd.conf
-cp interfaces /etc/network/interfaces
-cp modules /etc/modules
-chmod +x *.sh
-cd ..
 git clone https://github.com/samyk/poisontap.git
 chown -R pi poisontap
 cd poisontap
-cp dhcpd.conf /etc/dhcp
-cd ..
-git clone https://github.com/lgandx/Responder
+cp dhcpd.conf /etc/dhcp/dhcpd.conf
 
 # NodeJS package and websocket are only in debian repo...
 echo "[+] Install nodejs...we have to add debian sources for this...why u no in kali?"
@@ -514,11 +520,14 @@ EOF
     echo "[+] Enable sshd at startup"
     chroot $dir /bin/bash -c "update-rc.d ssh enable"
 
-    #echo "[+] Symlink to build"
+    echo "[+] Update dhcp server interfaces"
+    sed -i 's/INTERFACE=/INTERFACEv4=/g' $dir/etc/default/isc-dhcp-server
+
+    echo "[+] Symlink to build"
     chroot $dir /bin/bash -c "chmod +x /tmp/fixkernel.sh"
 
-    echo "[+] Copying config.txt to /boot"
-    cp $dir/home/pi/HackPi/config.txt $dir/boot/config.txt
+    echo "[+] Config.txt for /boot/config.txt"
+    echo "dtoverlay=dwc2" > $dir/boot/config.txt
 
     rm -f $dir/tmp/*
 
@@ -531,12 +540,6 @@ EOF
     # Copy poison.txt for easy enable/settings
     echo "[+] Copying poison.txt (poisontap config file)"
     cp $TOPDIR/misc/poison.txt $dir/boot/poison.txt
-
-    # RC LOCAL
-    echo "[+] Copy rc.local"
-    cp $TOPDIR/misc/rc.local $dir/etc/rc.local
-    dos2unix $dir/etc/rc.local
-    chroot $dir /bin/bash -c "chmod +x /etc/rc.local"
 
     # Enable regenerate ssh host keys at first boot
     chroot $dir /bin/bash -c "systemctl enable regenerate_ssh_host_keys"
